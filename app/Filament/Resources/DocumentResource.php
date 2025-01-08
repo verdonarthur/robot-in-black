@@ -2,19 +2,34 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Imports\DocumentImporter;
+use App\Filament\Imports\DocumentCsvImporter;
 use App\Filament\Resources\DocumentResource\Pages;
+use App\Filament\Resources\DocumentResource\Pages\CreateDocument;
+use App\Filament\Resources\DocumentResource\Pages\EditDocument;
+use App\Filament\Resources\DocumentResource\Pages\ListDocuments;
 use App\Filament\Resources\DocumentResource\RelationManagers;
 use App\Models\Document;
 use Exception;
 use Filament\Forms;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\MarkdownEditor;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\BulkActionGroup;
+use Filament\Tables\Actions\DeleteAction;
+use Filament\Tables\Actions\DeleteBulkAction;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\ImportAction;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class DocumentResource extends Resource
 {
@@ -26,10 +41,10 @@ class DocumentResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('title')
+                TextInput::make('title')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Select::make('id_agent')
+                Select::make('id_agent')
                     ->relationship(
                         name: 'agent',
                         titleAttribute: 'name',
@@ -37,7 +52,7 @@ class DocumentResource extends Resource
                     )
                     ->required()
                     ->preload(),
-                Forms\Components\MarkdownEditor::make('content')
+                MarkdownEditor::make('content')
                     ->required()
                     ->columnSpanFull(),
             ]);
@@ -50,30 +65,64 @@ class DocumentResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('title')
+                TextColumn::make('title')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('agent.name')
+                TextColumn::make('agent.name')
                     ->label('Agent')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('agent')
+                SelectFilter::make('agent')
                     ->relationship('agent', 'name'),
             ])
             ->headerActions([
-                Tables\Actions\ImportAction::make()
-                    ->importer(DocumentImporter::class),
+                Action::make('Bulk Import')
+                    ->color('gray')
+                    ->form([
+                        Select::make('id_agent')
+                            ->relationship(
+                                name: 'agent',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: fn(Builder $query) => $query->where('id_user', auth()->id()),
+                            )
+                            ->required()
+                            ->preload(),
+                        FileUpload::make('documents')
+                            ->multiple()
+                            ->storeFiles(false)
+                            ->maxSize(1024)
+                            ->maxFiles(10)
+                    ])->action(function (array $data): void {
+                        /** @var TemporaryUploadedFile $document */
+                        foreach ($data['documents'] as $document) {
+                            if(! collect(['text/plain', 'application/json', 'application/xml'])->contains($document->getMimeType())) {
+                                continue;
+                            }
+
+                            $newDocument = new Document();
+                            $newDocument->title = $document->getClientOriginalName();
+                            $newDocument->content = $document->getContent();
+                            $newDocument->id_user = auth()->id();
+                            $newDocument->id_agent = $data['id_agent'];
+
+                            $newDocument->save();
+                        }
+                    }),
+                ImportAction::make()
+                    ->label('CSV import')
+                    ->color('gray')
+                    ->importer(DocumentCsvImporter::class),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                EditAction::make(),
+                DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ])
             ->modifyQueryUsing(fn(Builder $query) => $query->where('id_user', auth()->id()));
@@ -82,9 +131,9 @@ class DocumentResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListDocuments::route('/'),
-            'create' => Pages\CreateDocument::route('/create'),
-            'edit' => Pages\EditDocument::route('/{record}/edit'),
+            'index' => ListDocuments::route('/'),
+            'create' => CreateDocument::route('/create'),
+            'edit' => EditDocument::route('/{record}/edit'),
         ];
     }
 }

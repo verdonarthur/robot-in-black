@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use JsonException;
 
 class Document extends Model
@@ -50,6 +51,11 @@ class Document extends Model
     {
         static::saving(static function ($document) {
             if ($document->isDirty('content')) {
+                $document->content = Str::of($document->content)
+                    ->explode(' ')
+                    ->take(2000)
+                    ->implode(' ');
+
                 $document->embedding = app(GeminiProvider::class)
                     ->getEmbedding($document->content);
             }

@@ -14,7 +14,12 @@ class Agent extends Model
     protected $fillable = [
         'name',
         'prompt',
+        'chatOptions',
         'id_user'
+    ];
+
+    protected $casts = [
+        'chatOptions' => 'array',
     ];
 
     public function user(): BelongsTo

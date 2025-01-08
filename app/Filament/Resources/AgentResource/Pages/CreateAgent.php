@@ -12,6 +12,14 @@ class CreateAgent extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        if($data['chatPassword']) {
+            $data['chatOptions']['password'] = $data['chatPassword'];
+        }
+
+        if($data['searchPlaceholder']) {
+            $data['chatOptions']['searchPlaceholder'] = $data['searchPlaceholder'];
+        }
+
         $data['id_user'] = auth()->id();
         return $data;
     }

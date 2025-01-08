@@ -284,14 +284,14 @@
             box-shadow: 0px 0px 51px -23px #00000099;
         }
 
-        .result-container.hidden {
-            display: none;
-        }
-
         .result-container p {
             font-size: 1.6rem;
             font-weight: 300;
             line-height: 1.8;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
@@ -306,11 +306,12 @@
             <h1>{{ $agent->name }}</h1>
             <p class="subtitle">What do you want to know ?</p>
             <form>
-            <textarea
-                name=""
-                placeholder="How can I delete this page ?"
-                id=""
-            ></textarea>
+                <textarea
+                    name=""
+                    placeholder="{{ $agent->chatOptions['searchPlaceholder'] ?? 'How can I delete this page ?'}}"
+                    id=""
+                ></textarea>
+
                 <button type="submit">Search</button>
             </form>
         </div>
@@ -331,10 +332,15 @@
             ".result-container",
         );
         const result = document.querySelector(".result");
+
         form.addEventListener("submit", (e) => {
-            resultContainer.classList.add("hidden");
             e.preventDefault();
+
+            resultContainer.classList.add("hidden");
+            form.querySelector('button[type="submit"]').classList.add("hidden");
+
             const url = "{{ route('agent.prompt.prompt', $agent->id) }}";
+
             fetch(url, {
                 method: "POST",
                 headers: {
@@ -350,6 +356,7 @@
                 result.innerHTML = json.answer;
 
                 resultContainer.classList.remove("hidden");
+                form.querySelector('button[type="submit"]').classList.remove("hidden");
             });
         });
     </script>

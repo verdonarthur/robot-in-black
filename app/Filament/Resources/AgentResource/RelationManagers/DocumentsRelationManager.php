@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\AgentResource\RelationManagers;
 
-use App\Filament\Imports\DocumentImporter;
+use App\Filament\Imports\DocumentCsvImporter;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -45,7 +45,7 @@ class DocumentsRelationManager extends RelationManager
             ->headerActions([
                 Tables\Actions\CreateAction::make(),
                 Tables\Actions\ImportAction::make()
-                    ->importer(DocumentImporter::class),
+                    ->importer(DocumentCsvImporter::class),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

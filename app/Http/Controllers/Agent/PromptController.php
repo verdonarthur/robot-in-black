@@ -14,8 +14,6 @@ class PromptController extends Controller
 {
     public function index(Agent $agent): \Illuminate\Contracts\View\View|\Illuminate\Contracts\View\Factory|\Illuminate\Foundation\Application
     {
-
-
         return view('agent.prompt.index', ['agent' => $agent]);
     }
 

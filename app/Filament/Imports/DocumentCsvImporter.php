@@ -11,7 +11,7 @@ use Filament\Actions\Imports\Models\Import;
 use Filament\Facades\Filament;
 use Illuminate\Support\Str;
 
-class DocumentImporter extends Importer
+class DocumentCsvImporter extends Importer
 {
     protected static ?string $model = Document::class;
 
