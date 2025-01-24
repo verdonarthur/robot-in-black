@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->text('content');
             $table->string('title');
-            $table->vector('embedding', 768);
             $table->unsignedBigInteger('id_user');
             $table->unsignedBigInteger('id_agent');
             $table->timestamps();

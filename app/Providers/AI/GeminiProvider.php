@@ -2,8 +2,10 @@
 
 namespace App\Providers\AI;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class GeminiProvider
 {
@@ -29,8 +31,12 @@ class GeminiProvider
                 ]
             ])->json();
 
+            if(isset($response['error'])) {
+                throw new RuntimeException(json_encode($response['error']));
+            }
+
             return $response['embedding']['values'] ?? [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Gemini Embedding Error: ' . $e->getMessage());
             return [];
         }
@@ -72,7 +78,7 @@ class GeminiProvider
             ])->json();
 
             return $response['candidates'][0]['content']['parts'][0]['text'] ?? 'No response';
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Gemini Prompt Error: ' . $e->getMessage());
             return 'An error occurred while processing the prompt.';
         }

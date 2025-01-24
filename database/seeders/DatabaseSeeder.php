@@ -14,16 +14,14 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $users = User::factory(5)->create();
+        $agentsFromRndUser = AgentFactory::new()->count(2)->withUser($users[0])->create();
+        DocumentFactory::new()->count(5)->withAgent($agentsFromRndUser[0])->withUser($users[0])->withEmbedding()->create();
 
         $mainUser = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
-
-        $agentsFromRndUser = AgentFactory::new()->count(2)->withUser($users[0])->create();
         $mainAgents = AgentFactory::new()->count(2)->withUser($mainUser)->create();
-
-        DocumentFactory::new()->count(5)->withAgent($agentsFromRndUser[0])->withUser($users[0])->create();
-        DocumentFactory::new()->count(5)->withAgent($mainAgents[0])->withUser($mainUser)->create();
+        DocumentFactory::new()->count(5)->withAgent($mainAgents[0])->withUser($mainUser)->withEmbedding()->create();
     }
 }

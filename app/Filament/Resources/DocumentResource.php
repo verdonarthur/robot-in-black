@@ -29,6 +29,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class DocumentResource extends Resource
@@ -98,13 +99,19 @@ class DocumentResource extends Resource
                     ])->action(function (array $data): void {
                         /** @var TemporaryUploadedFile $document */
                         foreach ($data['documents'] as $document) {
-                            if(! collect(['text/plain', 'application/json', 'application/xml'])->contains($document->getMimeType())) {
+                            if (! collect([
+                                'text/plain',
+                                'text/markdown',
+                                'application/javascript',
+                                'application/json',
+                                'application/xml'
+                            ])->contains($document->getMimeType())) {
                                 continue;
                             }
 
                             $newDocument = new Document();
                             $newDocument->title = $document->getClientOriginalName();
-                            $newDocument->content = $document->getContent();
+                            $newDocument->content = addslashes($document->getContent());
                             $newDocument->id_user = auth()->id();
                             $newDocument->id_agent = $data['id_agent'];
 

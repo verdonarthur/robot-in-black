@@ -9,7 +9,6 @@ use JsonException;
 
 class Vector implements CastsAttributes
 {
-
     /**
      * @inheritDoc
      * @throws JsonException

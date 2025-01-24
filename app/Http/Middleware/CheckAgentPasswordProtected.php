@@ -12,7 +12,7 @@ class CheckAgentPasswordProtected
     public function handle(Request $request, Closure $next): Response
     {
         $agent = $request->route('agent');
-        $agentPassword = $agent->chatOptions['password'];
+        $agentPassword = $agent->chatOptions['password'] ?? null;
 
         if ($agent && $agentPassword) {
             $expectedPassword = $agentPassword;

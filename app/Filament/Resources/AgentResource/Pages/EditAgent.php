@@ -19,11 +19,11 @@ class EditAgent extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if($data['chatPassword']) {
+        if($data['chatPassword'] ?? null) {
             $data['chatOptions']['password'] = $data['chatPassword'];
         }
 
-        if($data['searchPlaceholder']) {
+        if($data['searchPlaceholder'] ?? null) {
             $data['chatOptions']['searchPlaceholder'] = $data['searchPlaceholder'];
         }
 

@@ -25,9 +25,9 @@ class PromptController extends Controller
         $search = $request->get('search');
         $agent = Agent::query()->findOrFail($id);
 
-        $context = Document::orderedByContentDistance($search)
+        $context = Document::orderedByContentDistance($search, $agent)
             ->take(2)
-            ->map(function ($document) use ($agent) {
+            ->map(function ($document) {
                 return $document->content;
             })
             ->implode("\n")

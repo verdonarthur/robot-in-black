@@ -7,6 +7,10 @@ use App\Providers\AI\GeminiProvider;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use JsonException;
@@ -18,13 +22,12 @@ class Document extends Model
     protected $fillable = [
         'content',
         'title',
-        'embedding',
         'id_user',
-        'id_agent'
+        'id_agent',
     ];
 
     protected $casts = [
-        'embedding' => Vector::class,
+        'content' => 'encrypted',
     ];
 
     public function user(): BelongsTo
@@ -39,26 +42,58 @@ class Document extends Model
 
     /**
      * @throws JsonException
+     * @return Collection<Document>
      */
-    public static function orderedByContentDistance(string $content)
+    public static function orderedByContentDistance(string $content, Agent $agent): Collection
     {
         $embedding = app(GeminiProvider::class)->getEmbedding($content);
 
-        return self::query()->orderByRaw('VEC_DISTANCE_EUCLIDEAN(VEC_FROMTEXT(?), embedding)', [json_encode($embedding, JSON_THROW_ON_ERROR)])->get();
+        $agentDocumentIds = $agent->documents()->pluck('id');
+
+        $documentIds = DocumentEmbedding::query()
+            ->whereIn('document_id', $agentDocumentIds)
+            ->orderByRaw('VEC_DISTANCE_EUCLIDEAN(VEC_FROMTEXT(?), embedding)', [json_encode($embedding, JSON_THROW_ON_ERROR)])
+            ->get()
+            ->pluck('document_id')
+            ->unique();
+
+        return self::query()->findMany($documentIds);
     }
 
     protected static function booted(): void
     {
-        static::saving(static function ($document) {
-            if ($document->isDirty('content')) {
-                $document->content = Str::of($document->content)
-                    ->explode(' ')
-                    ->take(2000)
-                    ->implode(' ');
-
-                $document->embedding = app(GeminiProvider::class)
-                    ->getEmbedding($document->content);
+        static::saved(static function (Document $document) {
+            if (! $document->isDirty('content')) {
+                return;
             }
+
+            $document->embeddings()->delete();
+
+            $embeddings = Str::of($document->content)
+                ->replaceMatches('/[^a-zA-Z0-9\s]/', '')
+                ->split('/\s+/')
+                ->chunk(2040)
+                ->flatMap(
+                    fn(Collection $splitContentChunk) => Str::of($splitContentChunk
+                        ->implode(' '))
+                        ->split(9_000),
+                )
+                ->map(static function (string $text) {
+                    return app(GeminiProvider::class)
+                        ->getEmbedding($text);
+                })
+                ->map(static function ($embedding) {
+                    return new DocumentEmbedding([
+                        'embedding' => $embedding,
+                    ]);
+                });
+
+            $document->embeddings()->saveMany($embeddings);
         });
+    }
+
+    public function embeddings(): HasMany
+    {
+        return $this->hasMany(DocumentEmbedding::class);
     }
 }
