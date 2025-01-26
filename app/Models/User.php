@@ -2,42 +2,39 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserGroupEnum;
+use App\Models\User\Group;
+use App\Providers\Filament\AdminPanelProvider;
+use App\Providers\Filament\ConsolePanelProvider;
+use Database\Factories\UserFactory;
+use Exception;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable implements FilamentUser
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'group_id',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -48,8 +45,27 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
+    /**
+     * @throws Exception
+     */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasVerifiedEmail();
+        $panelId = $panel->getId();
+
+        if ($panelId === AdminPanelProvider::ID && $this->group->name === UserGroupEnum::ADMIN) {
+            return true;
+        }
+
+        if ($panelId === ConsolePanelProvider::ID
+            && in_array($this->group->name, [UserGroupEnum::ADMIN, UserGroupEnum::USER], true)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class);
     }
 }

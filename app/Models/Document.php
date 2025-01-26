@@ -2,16 +2,12 @@
 
 namespace App\Models;
 
-use App\Casts\Vector;
-use App\Providers\AI\GeminiProvider;
+use App\Services\AI\GeminiService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use JsonException;
 
@@ -46,13 +42,16 @@ class Document extends Model
      */
     public static function orderedByContentDistance(string $content, Agent $agent): Collection
     {
-        $embedding = app(GeminiProvider::class)->getEmbedding($content);
+        $maxDocument = 2;
+
+        $embedding = app(GeminiService::class)->getEmbedding($content);
 
         $agentDocumentIds = $agent->documents()->pluck('id');
 
         $documentIds = DocumentEmbedding::query()
             ->whereIn('document_id', $agentDocumentIds)
             ->orderByRaw('VEC_DISTANCE_EUCLIDEAN(VEC_FROMTEXT(?), embedding)', [json_encode($embedding, JSON_THROW_ON_ERROR)])
+            ->limit($maxDocument)
             ->get()
             ->pluck('document_id')
             ->unique();
@@ -79,7 +78,7 @@ class Document extends Model
                         ->split(9_000),
                 )
                 ->map(static function (string $text) {
-                    return app(GeminiProvider::class)
+                    return app(GeminiService::class)
                         ->getEmbedding($text);
                 })
                 ->map(static function ($embedding) {

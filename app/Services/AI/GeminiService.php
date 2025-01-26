@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Providers\AI;
+namespace App\Services\AI;
 
 use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-class GeminiProvider
+class GeminiService
 {
     private string $apiKey;
     private string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
@@ -42,40 +42,37 @@ class GeminiProvider
         }
     }
 
-    public function getEmbeddings(array $contents): array
-    {
-        $embeddings = [];
-        foreach ($contents as $content) {
-            $embeddings[] = $this->getEmbedding($content);
-        }
-        return $embeddings;
-    }
-
-    public function prompt(string $prompt): string
+    public function prompt(string $prompt, string $systemPrompt): string
     {
         try {
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json'
             ])->post("{$this->baseUrl}/models/gemini-1.5-flash:generateContent?key={$this->apiKey}", [
+                'systemInstruction' => [
+                    'parts' => [
+                        ['text' => $systemPrompt],
+                    ],
+                ],
                 'contents' => [
                     'parts' => [
                         ['text' => $prompt]
                     ]
                 ],
-//                'safetySettings' => [
-//                    [
-//                        'category' => 'HARM_CATEGORY_DANGEROUS_CONTENT',
-//                        'threshold' => 'BLOCK_ONLY_HIGH'
-//                    ]
-//                ],
+                'safetySettings' => [
+                    [
+                        'category' => 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                        'threshold' => 'BLOCK_ONLY_HIGH',
+                    ],
+                ],
                 'generationConfig' => [
-//                    'stopSequences' => ['Title'],
                     'temperature' => 1.0,
                     'maxOutputTokens' => 800,
-//                    'topP' => 0.8,
-//                    'topK' => 10
                 ]
             ])->json();
+
+            if (isset($response['error'])) {
+                throw new RuntimeException(json_encode($response['error']));
+            }
 
             return $response['candidates'][0]['content']['parts'][0]['text'] ?? 'No response';
         } catch (Exception $e) {

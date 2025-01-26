@@ -53,7 +53,10 @@ RUN npm install && npm run build
 RUN php artisan config:clear && \
     php artisan cache:clear && \
     php artisan view:clear && \
-    php artisan route:clear
+    php artisan route:clear && \
+    php artisan filament:optimize-clear
+
+RUN php artisan filament:optimize && php artisan optimize
 
 # Configure PHP-FPM and Supervisor
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

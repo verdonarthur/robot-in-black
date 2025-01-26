@@ -10,6 +10,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\Support\Colors\Color;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -18,9 +19,9 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-class ConsolePanelProvider extends PanelProvider
+class AdminPanelProvider extends PanelProvider
 {
-    public const ID = 'console';
+    public const ID = 'admin';
 
     /**
      * @throws Exception
@@ -28,20 +29,19 @@ class ConsolePanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->default()
             ->id(self::ID)
-            ->path('console')
+            ->path('admin')
             ->login()
             ->colors([
-                'primary' => '#000000',
+                'primary' => Color::Blue,
             ])
-            ->brandName('Robot In Black')
-            ->discoverResources(in: app_path('Filament/Console/Resources'), for: 'App\\Filament\\Console\\Resources')
-            ->discoverPages(in: app_path('Filament/Console/Pages'), for: 'App\\Filament\\Console\\Pages')
+            ->brandName('Robot In Black - Admin')
+            ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')
+            ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Console/Widgets'), for: 'App\\Filament\\Console\\Widgets')
+            ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\\Filament\\Admin\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
             ])

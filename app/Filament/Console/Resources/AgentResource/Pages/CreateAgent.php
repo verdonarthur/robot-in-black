@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\AgentResource\Pages;
+namespace App\Filament\Console\Resources\AgentResource\Pages;
 
-use App\Filament\Resources\AgentResource;
-use Filament\Actions;
+use App\Filament\Console\Resources\AgentResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateAgent extends CreateRecord

@@ -1,23 +1,19 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Console\Resources;
 
-use App\Filament\Imports\DocumentCsvImporter;
-use App\Filament\Resources\DocumentResource\Pages;
-use App\Filament\Resources\DocumentResource\Pages\CreateDocument;
-use App\Filament\Resources\DocumentResource\Pages\EditDocument;
-use App\Filament\Resources\DocumentResource\Pages\ListDocuments;
-use App\Filament\Resources\DocumentResource\RelationManagers;
+use App\Filament\Console\Imports\DocumentCsvImporter;
+use App\Filament\Console\Resources\DocumentResource\Pages\CreateDocument;
+use App\Filament\Console\Resources\DocumentResource\Pages\EditDocument;
+use App\Filament\Console\Resources\DocumentResource\Pages\ListDocuments;
 use App\Models\Document;
 use Exception;
-use Filament\Forms;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteAction;
@@ -28,8 +24,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class DocumentResource extends Resource
@@ -96,28 +90,7 @@ class DocumentResource extends Resource
                             ->storeFiles(false)
                             ->maxSize(1024)
                             ->maxFiles(10)
-                    ])->action(function (array $data): void {
-                        /** @var TemporaryUploadedFile $document */
-                        foreach ($data['documents'] as $document) {
-                            if (! collect([
-                                'text/plain',
-                                'text/markdown',
-                                'application/javascript',
-                                'application/json',
-                                'application/xml'
-                            ])->contains($document->getMimeType())) {
-                                continue;
-                            }
-
-                            $newDocument = new Document();
-                            $newDocument->title = $document->getClientOriginalName();
-                            $newDocument->content = addslashes($document->getContent());
-                            $newDocument->id_user = auth()->id();
-                            $newDocument->id_agent = $data['id_agent'];
-
-                            $newDocument->save();
-                        }
-                    }),
+                    ])->action(fn(array $data) => self::importBulk($data)),
                 ImportAction::make()
                     ->label('CSV import')
                     ->color('gray')
@@ -142,5 +115,29 @@ class DocumentResource extends Resource
             'create' => CreateDocument::route('/create'),
             'edit' => EditDocument::route('/{record}/edit'),
         ];
+    }
+
+    protected static function importBulk(array $data): void
+    {
+        /** @var TemporaryUploadedFile $document */
+        foreach ($data['documents'] as $document) {
+            if (! collect([
+                'text/plain',
+                'text/markdown',
+                'application/javascript',
+                'application/json',
+                'application/xml',
+            ])->contains($document->getMimeType())) {
+                continue;
+            }
+
+            $newDocument = new Document();
+            $newDocument->title = $document->getClientOriginalName();
+            $newDocument->content = addslashes($document->getContent());
+            $newDocument->id_user = auth()->id();
+            $newDocument->id_agent = $data['id_agent'];
+
+            $newDocument->save();
+        }
     }
 }

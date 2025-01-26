@@ -1,15 +1,12 @@
 <?php
 
-namespace App\Filament\Imports;
+namespace App\Filament\Console\Imports;
 
 use App\Models\Agent;
 use App\Models\Document;
-use Exception;
 use Filament\Actions\Imports\ImportColumn;
 use Filament\Actions\Imports\Importer;
 use Filament\Actions\Imports\Models\Import;
-use Filament\Facades\Filament;
-use Illuminate\Support\Str;
 
 class DocumentCsvImporter extends Importer
 {

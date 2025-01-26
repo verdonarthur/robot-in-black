@@ -1,13 +1,11 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Console\Resources;
 
-use App\Filament\Resources\AgentResource\Pages;
-use App\Filament\Resources\AgentResource\Pages\CreateAgent;
-use App\Filament\Resources\AgentResource\Pages\EditAgent;
-use App\Filament\Resources\AgentResource\Pages\ListAgents;
-use App\Filament\Resources\AgentResource\RelationManagers;
-use App\Filament\Resources\AgentResource\RelationManagers\DocumentsRelationManager;
+use App\Filament\Console\Resources\AgentResource\Pages\CreateAgent;
+use App\Filament\Console\Resources\AgentResource\Pages\EditAgent;
+use App\Filament\Console\Resources\AgentResource\Pages\ListAgents;
+use App\Filament\Console\Resources\AgentResource\RelationManagers\DocumentsRelationManager;
 use App\Models\Agent;
 use Filament\Forms;
 use Filament\Forms\Components\Fieldset;
@@ -17,7 +15,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteAction;
@@ -26,7 +23,6 @@ use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\HtmlString;
 
 class AgentResource extends Resource
