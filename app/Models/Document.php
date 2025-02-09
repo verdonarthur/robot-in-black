@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-use App\Services\AI\GeminiService;
+use App\Providers\EmbeddingServiceProvider;
+use App\Services\AI\EmbeddingServiceInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,15 +43,19 @@ class Document extends Model
      */
     public static function orderedByContentDistance(string $content, Agent $agent): Collection
     {
-        $maxDocument = 2;
+        /**
+         * @type EmbeddingServiceInterface $embeddingService
+         */
+        $embeddingService = app(EmbeddingServiceProvider::EMBEDDING_SERVICE);
+        $maxDocument = 1;
 
-        $embedding = app(GeminiService::class)->getEmbedding($content);
+        $embedding = $embeddingService->getEmbedding($content);
 
         $agentDocumentIds = $agent->documents()->pluck('id');
 
         $documentIds = DocumentEmbedding::query()
             ->whereIn('document_id', $agentDocumentIds)
-            ->orderByRaw('VEC_DISTANCE_EUCLIDEAN(VEC_FROMTEXT(?), embedding)', [json_encode($embedding, JSON_THROW_ON_ERROR)])
+            ->orderByRaw("VEC_DISTANCE_EUCLIDEAN(VEC_FROMTEXT(?), embedding_{$embeddingService->getNbrOfVector()})", [json_encode($embedding, JSON_THROW_ON_ERROR)])
             ->limit($maxDocument)
             ->get()
             ->pluck('document_id')
@@ -61,7 +66,9 @@ class Document extends Model
 
     protected static function booted(): void
     {
-        static::saved(static function (Document $document) {
+        $embeddingService = app(EmbeddingServiceProvider::EMBEDDING_SERVICE);
+
+        static::saved(static function (Document $document) use ($embeddingService) {
             if (! $document->isDirty('content')) {
                 return;
             }
@@ -77,13 +84,14 @@ class Document extends Model
                         ->implode(' '))
                         ->split(9_000),
                 )
-                ->map(static function (string $text) {
-                    return app(GeminiService::class)
+                ->map(static function (string $text) use ($embeddingService) {
+                    return $embeddingService
                         ->getEmbedding($text);
                 })
-                ->map(static function ($embedding) {
+                ->map(static function ($embedding) use ($embeddingService) {
+                    $nbrOfVector = $embeddingService->getNbrOfVector();
                     return new DocumentEmbedding([
-                        'embedding' => $embedding,
+                        "embedding_{$nbrOfVector}" => $embedding,
                     ]);
                 });
 

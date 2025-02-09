@@ -61,17 +61,22 @@ class DocumentResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('title')
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('agent.name')
                     ->label('Agent')
-                    ->searchable(),
+                    ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
             ])
             ->filters([
                 SelectFilter::make('agent')
-                    ->relationship('agent', 'name'),
+                    ->relationship(
+                        name: 'agent',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn(Builder $query) => $query->where('id_user', auth()->id()),
+                    ),
             ])
             ->headerActions([
                 Action::make('Bulk Import')
@@ -86,10 +91,16 @@ class DocumentResource extends Resource
                             ->required()
                             ->preload(),
                         FileUpload::make('documents')
-                            ->multiple()
+                            ->multiple(20)
                             ->storeFiles(false)
                             ->maxSize(1024)
                             ->maxFiles(10)
+                            ->acceptedFileTypes([
+                                'application/javascript',
+                                'application/json',
+                                'application/xml',
+                                'text/*',
+                            ])
                     ])->action(fn(array $data) => self::importBulk($data)),
                 ImportAction::make()
                     ->label('CSV import')
@@ -121,19 +132,9 @@ class DocumentResource extends Resource
     {
         /** @var TemporaryUploadedFile $document */
         foreach ($data['documents'] as $document) {
-            if (! collect([
-                'text/plain',
-                'text/markdown',
-                'application/javascript',
-                'application/json',
-                'application/xml',
-            ])->contains($document->getMimeType())) {
-                continue;
-            }
-
             $newDocument = new Document();
             $newDocument->title = $document->getClientOriginalName();
-            $newDocument->content = addslashes($document->getContent());
+            $newDocument->content = $document->getContent();
             $newDocument->id_user = auth()->id();
             $newDocument->id_agent = $data['id_agent'];
 

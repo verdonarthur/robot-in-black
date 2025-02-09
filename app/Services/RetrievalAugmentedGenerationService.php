@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
-use App\Services\AI\GeminiService;
+use App\Enums\ChatOptions;
+use App\Exceptions\PromptException;
+use App\Models\Agent;
+use App\Providers\PromptServiceProvider;
+use App\Services\AI\PromptServiceInterface;
 use Illuminate\Support\Str;
 
 class RetrievalAugmentedGenerationService
@@ -10,11 +14,8 @@ class RetrievalAugmentedGenerationService
     public const REQUEST_TEMPLATE_VAR = '%REQUEST%';
     public const CONTEXT_TEMPLATE_VAR = '%CONTEXT%';
 
-    protected GeminiService $gemini;
-
-    public function __construct()
+    public function __construct(protected TokenizerService $tokenizerService)
     {
-        $this->gemini = app(GeminiService::class);
     }
 
     public static function getSystemPrompt(): string
@@ -31,12 +32,41 @@ class RetrievalAugmentedGenerationService
         SYSTEM_PROMPT;
     }
 
-    public function generateAnswer(string $userPrompt, string $agentPrompt, string $content): string
+    protected function limitContentSize(string $content, int $maxToken): string
     {
-        $finalPrompt = Str::of($agentPrompt)
-            ->replace(self::REQUEST_TEMPLATE_VAR, $userPrompt)
-            ->replace(self::CONTEXT_TEMPLATE_VAR, $content);
+        $maxNumberOfCharacter = $this->tokenizerService->tokenize($content)->take(
+            $maxToken,
+        )->reduce(fn(int $acc, string $token) => strlen($token) + $acc, 0);
 
-        return $this->gemini->prompt($finalPrompt, self::getSystemPrompt());
+        return Str::of($content)->take($maxNumberOfCharacter);
+    }
+
+    /**
+     * @throws PromptException
+     */
+    public function generateAnswer(string $userPrompt, Agent $agent, string $content): string
+    {
+        $promptServiceClass = PromptServiceProvider::getServiceClassFromName(
+            $agent->getOption(ChatOptions::PROMPT_MODEL),
+        );
+        /** @type ?PromptServiceInterface $promptService */
+        $promptService = app($promptServiceClass);
+        if (! $promptServiceClass || ! $promptService) {
+            return '';
+        }
+
+        $finalPrompt = Str::of($agent->prompt)
+            ->replace(self::REQUEST_TEMPLATE_VAR, $userPrompt);
+
+        $finalPrompt = $finalPrompt
+            ->replace(
+                self::CONTEXT_TEMPLATE_VAR,
+                $this->limitContentSize(
+                    $content,
+                    $promptService->getMaximumPromptTokenLength() - $this->tokenizerService->tokenize($finalPrompt)->count() - 1000,
+                ),
+            );
+
+        return $promptService->prompt($finalPrompt, self::getSystemPrompt());
     }
 }

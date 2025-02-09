@@ -12,12 +12,16 @@ class DocumentEmbedding extends Model
     use HasFactory;
 
     protected $fillable = [
-        'embedding',
+        'embedding_384',
+        'embedding_768',
+        'embedding_3584',
         'id_document',
     ];
 
     protected $casts = [
-        'embedding' => Vector::class,
+        'embedding_384' => Vector::class,
+        'embedding_768' => Vector::class,
+        'embedding_3584' => Vector::class,
     ];
 
     public function document(): BelongsTo

@@ -2,82 +2,107 @@
 
 namespace App\Services\AI;
 
-use Exception;
+use App\Exceptions\EmbeddingException;
+use App\Exceptions\PromptException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use RuntimeException;
+use JsonException;
 
-class GeminiService
+class GeminiService implements EmbeddingServiceInterface, PromptServiceInterface
 {
+    public const MODEL_NAME = 'gemini-2.0-flash';
+
     private string $apiKey;
     private string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
 
     public function __construct()
     {
-        $this->apiKey = config('services.gemini.key');
+        $this->apiKey = config('ai.gemini.key');
     }
 
+    protected function getApiUrl(string $modelName, string $type): string
+    {
+        return "{$this->baseUrl}/models/{$modelName}:{$type}?key={$this->apiKey}";
+    }
+
+    /**
+     * @throws ConnectionException
+     * @throws JsonException
+     * @throws EmbeddingException
+     */
     public function getEmbedding(string $content): array
     {
-        try {
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json'
-            ])->post("{$this->baseUrl}/models/text-embedding-004:embedContent?key={$this->apiKey}", [
-                'model' => 'models/text-embedding-004',
-                'content' => [
-                    'parts' => [
-                        ['text' => $content]
-                    ]
-                ]
-            ])->json();
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+        ])->post($this->getApiUrl($this->getEmbeddingModelName(), 'embedContent'), [
+            'model' => "models/{$this->getEmbeddingModelName()}",
+            'content' => [
+                'parts' => [
+                    ['text' => $content],
+                ],
+            ],
+        ])->json();
 
-            if(isset($response['error'])) {
-                throw new RuntimeException(json_encode($response['error']));
-            }
-
-            return $response['embedding']['values'] ?? [];
-        } catch (Exception $e) {
-            Log::error('Gemini Embedding Error: ' . $e->getMessage());
-            return [];
+        if (isset($response['error'])) {
+            throw new EmbeddingException(json_encode($response['error'], JSON_THROW_ON_ERROR));
         }
+
+        return data_get($response, 'embedding.values');
     }
 
+    /**
+     * @throws PromptException
+     * @throws ConnectionException
+     * @throws JsonException
+     */
     public function prompt(string $prompt, string $systemPrompt): string
     {
-        try {
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json'
-            ])->post("{$this->baseUrl}/models/gemini-1.5-flash:generateContent?key={$this->apiKey}", [
-                'systemInstruction' => [
-                    'parts' => [
-                        ['text' => $systemPrompt],
-                    ],
-                ],
-                'contents' => [
-                    'parts' => [
-                        ['text' => $prompt]
-                    ]
-                ],
-                'safetySettings' => [
-                    [
-                        'category' => 'HARM_CATEGORY_DANGEROUS_CONTENT',
-                        'threshold' => 'BLOCK_ONLY_HIGH',
-                    ],
-                ],
-                'generationConfig' => [
-                    'temperature' => 1.0,
-                    'maxOutputTokens' => 800,
-                ]
-            ])->json();
+        $modelName = self::MODEL_NAME;
 
-            if (isset($response['error'])) {
-                throw new RuntimeException(json_encode($response['error']));
-            }
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+        ])->post($this->getApiUrl($modelName, 'generateContent'), [
+            'systemInstruction' => [
+                'parts' => [
+                    ['text' => $systemPrompt],
+                ],
+            ],
+            'contents' => [
+                'parts' => [
+                    ['text' => $prompt],
+                ],
+            ],
+            'safetySettings' => [
+                [
+                    'category' => 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                    'threshold' => 'BLOCK_ONLY_HIGH',
+                ],
+            ],
+            'generationConfig' => [
+                'temperature' => 1.0,
+                'maxOutputTokens' => 800,
+            ],
+        ])->json();
 
-            return $response['candidates'][0]['content']['parts'][0]['text'] ?? 'No response';
-        } catch (Exception $e) {
-            Log::error('Gemini Prompt Error: ' . $e->getMessage());
-            return 'An error occurred while processing the prompt.';
+        if (isset($response['error'])) {
+            throw new PromptException(json_encode($response['error'], JSON_THROW_ON_ERROR));
         }
+
+        return data_get($response, 'candidates.0.content.parts.0.text', '');
+    }
+
+    public function getEmbeddingModelName(): string
+    {
+        return 'text-embedding-004';
+    }
+
+    public function getNbrOfVector(): int
+    {
+        return 768;
+    }
+
+    public function getMaximumPromptTokenLength(): int
+    {
+        return 99_000;
     }
 }

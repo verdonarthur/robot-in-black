@@ -52,7 +52,11 @@ class User extends Authenticatable implements FilamentUser
     {
         $panelId = $panel->getId();
 
-        if ($panelId === AdminPanelProvider::ID && $this->group->name === UserGroupEnum::ADMIN) {
+        if ($this->group()->doesntExist()) {
+            return false;
+        }
+
+        if ($panelId === AdminPanelProvider::ID && $this->group?->name === UserGroupEnum::ADMIN) {
             return true;
         }
 

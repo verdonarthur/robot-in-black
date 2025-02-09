@@ -10,7 +10,9 @@ return new class extends Migration
     {
         Schema::create('document_embeddings', static function (Blueprint $table) {
             $table->id();
-            $table->vector('embedding', 768);
+            $table->vector('embedding_384', 384)->nullable();
+            $table->vector('embedding_768', 768)->nullable();
+            $table->vector('embedding_3584', 3584)->nullable();
             $table->unsignedBigInteger('document_id');
             $table->foreign('document_id')->references('id')->on('documents');
             $table->timestamps();

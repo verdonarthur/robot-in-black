@@ -2,15 +2,19 @@
 
 namespace App\Filament\Console\Resources;
 
+use App\Enums\ChatOptions;
 use App\Filament\Console\Resources\AgentResource\Pages\CreateAgent;
 use App\Filament\Console\Resources\AgentResource\Pages\EditAgent;
 use App\Filament\Console\Resources\AgentResource\Pages\ListAgents;
 use App\Filament\Console\Resources\AgentResource\RelationManagers\DocumentsRelationManager;
 use App\Models\Agent;
+use App\Providers\PromptServiceProvider;
+use App\Services\AI\GeminiService;
 use Filament\Forms;
 use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
@@ -46,19 +50,30 @@ class AgentResource extends Resource
                 Section::make('Chat Options')
                     ->schema([
                         Fieldset::make()
+                            ->columns(3)
                             ->schema([
                                 Toggle::make('isPasswordProtected')
                                     ->live()
+                                    ->columnSpan(1)
+                                ,
+                                TextInput::make(ChatOptions::PASSWORD_HASH->value)
+                                    ->label('New Password')
+                                    ->inlineLabel()
+                                    ->password()
+                                    ->revealable()
+                                    ->hidden(fn(Forms\Get $get) => ! $get('isPasswordProtected'))
                                     ->columnSpan(2)
                                 ,
-                                TextInput::make('chatPassword')
-                                    ->password()
-                                    ->revealable(true)
-                                    ->hidden(fn(Forms\Get $get) => ! $get('isPasswordProtected'))
-                                    ->columnSpan(4)
-                                ,
                             ]),
-                        TextInput::make('searchPlaceholder')
+                        TextInput::make(ChatOptions::SEARCH_SUBTITLE->value),
+                        TextInput::make(ChatOptions::SEARCH_PLACEHOLDER->value),
+                        Select::make(ChatOptions::PROMPT_MODEL->value)
+                            ->label('GPT Model')
+                            ->options(
+                                PromptServiceProvider::getActivatedServicesAsOptions(),
+                            )
+                            ->default(GeminiService::MODEL_NAME)
+                        ,
                     ]),
             ]);
     }
@@ -78,7 +93,7 @@ class AgentResource extends Resource
             ])
             ->actions([
                 Action::make('chat')
-                    ->url(fn(Agent $record): string => route('agent.prompt.index', $record))
+                    ->url(fn(Agent $record): string => route('agent.prompt', $record))
                     ->openUrlInNewTab(),
                 EditAction::make(),
                 DeleteAction::make(),

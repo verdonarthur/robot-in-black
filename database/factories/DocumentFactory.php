@@ -41,7 +41,7 @@ class DocumentFactory extends Factory
     {
         return $this->afterCreating(function (Document $document) {
             $embedding = collect(range(0, 767))->toJson();
-            $document->embeddings()->create(['embedding' => $embedding]);
+            $document->embeddings()->create(['embedding_768' => $embedding]);
         });
     }
 }
