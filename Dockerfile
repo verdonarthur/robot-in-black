@@ -56,7 +56,7 @@ RUN php artisan config:clear && \
     php artisan route:clear && \
     php artisan filament:optimize-clear
 
-RUN php artisan filament:optimize && php artisan optimize
+RUN php artisan filament:optimize
 
 # Configure PHP-FPM and Supervisor
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
