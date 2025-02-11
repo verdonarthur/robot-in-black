@@ -7,7 +7,7 @@ use App\Exceptions\PromptException;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\CheckAgentPasswordProtected;
 use App\Models\Agent;
-use App\Models\Document;
+use App\Models\DocumentEmbedding;
 use App\Services\RetrievalAugmentedGenerationService;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -63,9 +63,9 @@ class PromptController extends Controller
             ];
         }
 
-        $context = Document::orderedByContentDistance($search, $agent)
-            ->map(function ($document) {
-                return $document->content;
+        $context = DocumentEmbedding::orderedByContentDistance($search, $agent)
+            ->map(function (DocumentEmbedding $documentEmbedding) {
+                return $documentEmbedding->content;
             })
             ->implode("\n");
 

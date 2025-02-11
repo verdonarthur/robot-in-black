@@ -3,15 +3,19 @@
 namespace App\Models;
 
 use App\Providers\EmbeddingServiceProvider;
-use App\Services\AI\EmbeddingServiceInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use JsonException;
 
+/**
+ * @property int $id
+ * @property string $content
+ * @property ?int $id_user
+ * @property ?int $id_agent
+ */
 class Document extends Model
 {
     use HasFactory;
@@ -37,33 +41,6 @@ class Document extends Model
         return $this->belongsTo(Agent::class, 'id_agent');
     }
 
-    /**
-     * @throws JsonException
-     * @return Collection<Document>
-     */
-    public static function orderedByContentDistance(string $content, Agent $agent): Collection
-    {
-        /**
-         * @type EmbeddingServiceInterface $embeddingService
-         */
-        $embeddingService = app(EmbeddingServiceProvider::EMBEDDING_SERVICE);
-        $maxDocument = 1;
-
-        $embedding = $embeddingService->getEmbedding($content);
-
-        $agentDocumentIds = $agent->documents()->pluck('id');
-
-        $documentIds = DocumentEmbedding::query()
-            ->whereIn('document_id', $agentDocumentIds)
-            ->orderByRaw("VEC_DISTANCE_EUCLIDEAN(VEC_FROMTEXT(?), embedding_{$embeddingService->getNbrOfVector()})", [json_encode($embedding, JSON_THROW_ON_ERROR)])
-            ->limit($maxDocument)
-            ->get()
-            ->pluck('document_id')
-            ->unique();
-
-        return self::query()->findMany($documentIds);
-    }
-
     protected static function booted(): void
     {
         $embeddingService = app(EmbeddingServiceProvider::EMBEDDING_SERVICE);
@@ -75,22 +52,19 @@ class Document extends Model
 
             $document->embeddings()->delete();
 
+            $microSecondsToPreventRateLimit = 200;
             $embeddings = Str::of($document->content)
-                ->replaceMatches('/[^a-zA-Z0-9\s]/', '')
-                ->split('/\s+/')
-                ->chunk(2040)
-                ->flatMap(
-                    fn(Collection $splitContentChunk) => Str::of($splitContentChunk
-                        ->implode(' '))
-                        ->split(9_000),
-                )
-                ->map(static function (string $text) use ($embeddingService) {
-                    return $embeddingService
-                        ->getEmbedding($text);
-                })
-                ->map(static function ($embedding) use ($embeddingService) {
+                ->explode(' ')
+                ->chunk(DocumentEmbedding::MAX_TOKEN)
+                ->map(static function (Collection $chunk) use ($embeddingService, $microSecondsToPreventRateLimit) {
+                    $text = $chunk->implode(' ');
+                    $embedding = $embeddingService->getEmbedding($text);
                     $nbrOfVector = $embeddingService->getNbrOfVector();
+
+                    usleep($microSecondsToPreventRateLimit);
+
                     return new DocumentEmbedding([
+                        'content' => $text,
                         "embedding_{$nbrOfVector}" => $embedding,
                     ]);
                 });

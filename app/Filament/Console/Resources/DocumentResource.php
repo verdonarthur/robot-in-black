@@ -79,7 +79,7 @@ class DocumentResource extends Resource
                     ),
             ])
             ->headerActions([
-                Action::make('Bulk Import')
+                Action::make('Bulk Import text document')
                     ->color('gray')
                     ->form([
                         Select::make('id_agent')
@@ -91,16 +91,16 @@ class DocumentResource extends Resource
                             ->required()
                             ->preload(),
                         FileUpload::make('documents')
-                            ->multiple(20)
+                            ->label('Documents (Max 10)')
+                            ->panelLayout('grid')
+                            ->itemPanelAspectRatio(0.25)
+                            ->appendFiles()
+                            ->previewable(false)
+                            ->multiple(50)
                             ->storeFiles(false)
-                            ->maxSize(1024)
+                            ->maxSize(500)
                             ->maxFiles(10)
-                            ->acceptedFileTypes([
-                                'application/javascript',
-                                'application/json',
-                                'application/xml',
-                                'text/*',
-                            ])
+                            ->rules(['extensions:md,txt,text'])
                     ])->action(fn(array $data) => self::importBulk($data)),
                 ImportAction::make()
                     ->label('CSV import')

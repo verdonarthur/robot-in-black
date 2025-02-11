@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('documents', static function (Blueprint $table) {
             $table->id();
-            $table->text('content');
+            $table->mediumText('content');
             $table->string('title');
             $table->unsignedBigInteger('id_user');
             $table->unsignedBigInteger('id_agent');

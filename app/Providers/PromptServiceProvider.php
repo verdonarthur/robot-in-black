@@ -41,7 +41,7 @@ class PromptServiceProvider extends ServiceProvider implements DeferrableProvide
     {
         return collect(self::AVAILABLE_PROMPT_SERVICES)->mapWithKeys(function ($config, $name) {
             if (! config($config['config'])) {
-                return false;
+                return [false];
             }
 
             return [

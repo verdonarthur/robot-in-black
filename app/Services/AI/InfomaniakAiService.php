@@ -2,12 +2,11 @@
 
 namespace App\Services\AI;
 
-use App\Exceptions\EmbeddingException;
-use App\Exceptions\PromptException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use JsonException;
 
 class InfomaniakAiService implements EmbeddingServiceInterface, PromptServiceInterface
 {
@@ -29,23 +28,25 @@ class InfomaniakAiService implements EmbeddingServiceInterface, PromptServiceInt
     }
 
     /**
-     * @throws EmbeddingException
      * @throws ConnectionException
-     * @throws JsonException
+     * @throws RequestException
      */
     public function getEmbedding(string $content): array
     {
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey,
             'Content-Type' => 'application/json',
-        ])->post($this->embeddingUrl, [
-            'input' => $content,
-            'model' => $this->getEmbeddingModelName(),
-        ])->json();
-
-        if (isset($response['error']) || (data_get($response, 'result.error', false))) {
-            throw new EmbeddingException(json_encode($response['error'], JSON_THROW_ON_ERROR));
-        }
+        ])
+            ->retry(3, 60_000)
+            ->post($this->embeddingUrl, [
+                'input' => $content,
+                'model' => $this->getEmbeddingModelName(),
+            ])
+            ->throwIfStatus(429)
+            ->throwIf(function (Response $response) {
+                return $response->json('result.error', false);
+            })
+            ->json();
 
         return data_get($response, 'data.0.embedding', []);
     }
@@ -61,9 +62,8 @@ class InfomaniakAiService implements EmbeddingServiceInterface, PromptServiceInt
     }
 
     /**
-     * @throws PromptException
      * @throws ConnectionException
-     * @throws JsonException
+     * @throws RequestException
      */
     public function prompt(string $prompt, string $systemPrompt): string
     {
@@ -75,16 +75,18 @@ class InfomaniakAiService implements EmbeddingServiceInterface, PromptServiceInt
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey,
             'Content-Type' => 'application/json',
-        ])->post($this->textCompletionUrl, [
-            'model' => self::MODEL_NAME,
-            'messages' => $messages,
-            'temperature' => 1.0,
-            'max_tokens' => 800,
-        ])->json();
-
-        if (isset($response['error']) || (data_get($response, 'result.error', false))) {
-            throw new PromptException(json_encode($response['error'], JSON_THROW_ON_ERROR));
-        }
+        ])
+            ->retry(3, 5000)
+            ->post($this->textCompletionUrl, [
+                'model' => self::MODEL_NAME,
+                'messages' => $messages,
+                'temperature' => 1.0,
+                'max_tokens' => 800,
+            ])
+            ->throwIf(function (Response $response) {
+                return $response->json('result.error', false);
+            })
+            ->json();
 
         return data_get($response, 'choices.0.message.content', '');
     }
